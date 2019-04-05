@@ -1,20 +1,18 @@
 #!/bin/bash
-# Simple backup with rsync
+# Simple backup - written in bash - using rsync
 # local-mode, tossh-mode, fromssh-mode
 
 SOURCES=(/root /etc /home /boot)
 
-MYBACKUPDRIVE="/mnt/data"
-
+MOUNTPOINT="/mnt/data"       # check local mountpoint
 LOCALHOSTNAME=$(hostname)
-TARGET="$MYBACKUPDRIVE/backup/$LOCALHOSTNAME"
+TARGET="$MOUNTPOINT/backup/$LOCALHOSTNAME"
 
 # edit or comment with "#"
 LISTPACKAGES=listpacmanpackages   # local-mode and tossh-mode
 MONTHROTATE=monthrotate           # use DD instead of YYMMDD
 
 RSYNCCONF=(--delete)
-MOUNTPOINT="$MYBACKUPDRIVE"       # check local mountpoint
 #MAILREC="user@domain"
 
 #SSHUSER="sshuser"
