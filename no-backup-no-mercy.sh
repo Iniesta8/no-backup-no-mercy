@@ -9,23 +9,28 @@ LOCALHOSTNAME=$(hostname)
 TARGET="$MOUNTPOINT/backup/$LOCALHOSTNAME"
 
 # edit or comment with "#"
-LISTPACKAGES=listpacmanpackages   # local-mode and tossh-mode
+LISTPACKAGES=listrpms             # local-mode and tossh-mode
 MONTHROTATE=monthrotate           # use DD instead of YYMMDD
 
-RSYNCCONF=(--delete)
+RSYNCCONF=(--delete --exclude "/home/*/.cache")
 #MAILREC="user@domain"
 
 #SSHUSER="sshuser"
 #FROMSSH="fromssh-server"
 #TOSSH="tossh-server"
-SSHPORT=22
+#SSHPORT=22
 
-### do not edit ###
-MOUNT="/bin/mount"; FGREP="/bin/fgrep"; SSH="/usr/bin/ssh"
-LN="/bin/ln"; ECHO="/bin/echo"; DATE="/bin/date";
-PACMAN="/usr/bin/pacman"; MAIL="/usr/bin/mail"
+MOUNT="/bin/mount"
+FGREP="/bin/fgrep"
+SSH="/usr/bin/ssh"
+LN="/bin/ln"
+ECHO="/bin/echo"
+DATE="/bin/date"
+DNF="/usr/bin/dnf"
+MAIL="/usr/bin/mail"
 RSYNC="/usr/bin/rsync"
-LAST="last"; INC="--link-dest=$TARGET/$LAST"
+LAST="last"
+INC="--link-dest=$TARGET/$LAST"
 
 LOG=$0.log
 $DATE > "$LOG"
@@ -35,8 +40,8 @@ if [ "${TARGET:${#TARGET}-1:1}" != "/" ]; then
 fi
 
 if [ "$LISTPACKAGES" ] && [ -z "$FROMSSH" ]; then
-  $ECHO "$PACMAN -Qqe" >> "$LOG"
-  $PACMAN -Qqe >> "$LOG"  2>&1
+  $ECHO "$DNF list installed" >> "$LOG"
+  $DNF list installed >> "$LOG" 2>&1
 fi
 
 if [ "$MOUNTPOINT" ]; then
@@ -57,23 +62,20 @@ if [ -z "$MOUNTPOINT" ] || [ "$MOUNTED" ]; then
   for SOURCE in "${SOURCES[@]}"
     do
       if [ "$S" ] && [ "$FROMSSH" ] && [ -z "$TOSSH" ]; then
-        $ECHO "$RSYNC -e \"$S\" -avR \"$FROMSSH:$SOURCE\" ${RSYNCCONF[@]} $TARGET$TODAY $INC" >> "$LOG"
-        $RSYNC -e "$S" -avR "$FROMSSH:\"$SOURCE\"" "${RSYNCCONF[@]}" "$TARGET""$TODAY" "$INC" >> "$LOG" 2>&1
-        if [ $? -ne 0 ]; then
+        $ECHO "$RSYNC -e \"$S\" -avR \"$FROMSSH:$SOURCE\" ${RSYNCCONF[*]} $TARGET$TODAY $INC" >> "$LOG"
+        if $RSYNC -e "$S" -avR "$FROMSSH:\"$SOURCE\"" "${RSYNCCONF[@]}" "$TARGET""$TODAY" "$INC" >> "$LOG" 2>&1; then
           ERROR=1
         fi
       fi
       if [ "$S" ]  && [ "$TOSSH" ] && [ -z "$FROMSSH" ]; then
-        $ECHO "$RSYNC -e \"$S\" -avR \"$SOURCE\" ${RSYNCCONF[@]} \"$TOSSH:$TARGET$TODAY\" $INC " >> "$LOG"
-        $RSYNC -e "$S" -avR "$SOURCE" "${RSYNCCONF[@]}" "$TOSSH:\"$TARGET\"$TODAY" "$INC" >> "$LOG" 2>&1
-        if [ $? -ne 0 ]; then
+        $ECHO "$RSYNC -e \"$S\" -avR \"$SOURCE\" ${RSYNCCONF[*]} \"$TOSSH:$TARGET$TODAY\" $INC " >> "$LOG"
+        if $RSYNC -e "$S" -avR "$SOURCE" "${RSYNCCONF[@]}" "$TOSSH:\"$TARGET\"$TODAY" "$INC" >> "$LOG" 2>&1; then
           ERROR=1
         fi
       fi
       if [ -z "$S" ]; then
-        $ECHO "$RSYNC -avR \"$SOURCE\" ${RSYNCCONF[@]} $TARGET$TODAY $INC"  >> "$LOG"
-        $RSYNC -avR "$SOURCE" "${RSYNCCONF[@]}" "$TARGET""$TODAY" "$INC"  >> "$LOG" 2>&1
-        if [ $? -ne 0 ]; then
+        $ECHO "$RSYNC -avR \"$SOURCE\" ${RSYNCCONF[*]} $TARGET$TODAY $INC"  >> "$LOG"
+        if $RSYNC -avR "$SOURCE" "${RSYNCCONF[@]}" "$TARGET""$TODAY" "$INC"  >> "$LOG" 2>&1; then
           ERROR=1
         fi
       fi
@@ -81,15 +83,13 @@ if [ -z "$MOUNTPOINT" ] || [ "$MOUNTED" ]; then
 
   if [ "$S" ] && [ "$TOSSH" ] && [ -z "$FROMSSH" ]; then
     $ECHO "$SSH -p $SSHPORT -l $SSHUSER $TOSSH $LN -nsf $TARGET$TODAY $TARGET$LAST" >> "$LOG"
-    $SSH -p $SSHPORT -l "$SSHUSER" "$TOSSH" "$LN -nsf \"$TARGET\"$TODAY \"$TARGET\"$LAST" >> "$LOG" 2>&1
-    if [ $? -ne 0 ]; then
+    if $SSH -p "$SSHPORT" -l "$SSHUSER" "$TOSSH" "$LN -nsf \"$TARGET\"$TODAY \"$TARGET\"$LAST" >> "$LOG" 2>&1; then
       ERROR=1
     fi
   fi
-  if ( [ "$S" ] && [ "$FROMSSH" ] && [ -z "$TOSSH" ] ) || ( [ -z "$S" ] );  then
+  if [ "$S" ] && [ "$FROMSSH" ] && [ -z "$TOSSH" ] || [ -z "$S" ];  then
     $ECHO "$LN -nsf $TARGET$TODAY $TARGET$LAST" >> "$LOG"
-    $LN -nsf "$TARGET""$TODAY" "$TARGET"$LAST  >> "$LOG" 2>&1
-    if [ $? -ne 0 ]; then
+    if $LN -nsf "$TARGET""$TODAY" "$TARGET"$LAST  >> "$LOG" 2>&1; then
       ERROR=1
     fi
   fi
